@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stripe Prorations — Cheatsheet</title>
+  <link rel="stylesheet" href="../../../../assets/style.css">
+</head>
+<body>
+  <header>
+    <nav class="breadcrumb">
+      <span><a href="../../../../index.html">Learning Tank</a></span>
+      <span><a href="../../../index.html">Technology</a></span>
+      <span><a href="../../index.html">Stripe</a></span>
+      <span><a href="../index.html">Prorations</a></span>
+      <span>Cheatsheet</span>
+    </nav>
+    <h1>Prorations — Cheatsheet</h1>
+    <p class="subtitle">The compressed essence. Print it, pin it, glance at it.</p>
+  </header>
+
+  <main class="lesson-body">
+    <h2>The model</h2>
+    <p>A mid-cycle change = <strong>credit for unused time on the old price</strong> + <strong>charge for remaining time on the new price</strong>, shown as <strong>two line items</strong>. Net them to get the amount owed.</p>
+    <pre><code>credit = old_price × (unused_time / billing_period)   (negative)
+charge = new_price × (remaining_time / billing_period) (positive)
+net    = credit + charge        # >0 you owe, <0 a credit prorates back</code></pre>
+    <p>Worked: $10 → $20, halfway through → −$5 + $10 = <strong>+$5</strong>.</p>
+
+    <h2>Key facts</h2>
+    <ul>
+      <li><strong>Prorates to the second</strong>, from the <em>proration date</em> (the instant of the change).</li>
+      <li>Line items land on the <strong>next invoice</strong> by default — not billed immediately.</li>
+      <li>Downgrades produce a net <strong>credit proration</strong> (signs flip).</li>
+      <li>Proration applies to charges billed <em>ahead</em> of the period; usage-based billing isn't prorated.</li>
+    </ul>
+
+    <h2>proration_behavior (Lesson 2)</h2>
+    <ul>
+      <li><code>create_prorations</code> — default. Makes the line items; bills them on the next invoice.</li>
+      <li><code>always_invoice</code> — makes the line items and invoices immediately.</li>
+      <li><code>none</code> — no proration; customer pays the full new price next invoice.</li>
+    </ul>
+
+    <h2>Glossary anchors</h2>
+    <p><strong>Proration</strong> · <strong>Proration date</strong> · <strong>Billing period</strong> — see <a href="../GLOSSARY.md">GLOSSARY.md</a>.</p>
+
+    <p>Source: <a href="https://docs.stripe.com/billing/subscriptions/prorations">Stripe Billing — Prorations</a>.</p>
+
+    <nav class="lesson-nav">
+      <a href="../lessons/0001-what-is-proration.html">← Lesson 0001</a>
+      <span></span>
+    </nav>
+  </main>
+
+  <footer>
+    <p>Learning Tank · Stripe · Prorations · Reference</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>What is a proration?</title>
+  <link rel="stylesheet" href="../../../../assets/style.css">
+</head>
+<body>
+  <header>
+    <nav class="breadcrumb">
+      <span><a href="../../../../index.html">Learning Tank</a></span>
+      <span><a href="../../../index.html">Technology</a></span>
+      <span><a href="../../index.html">Stripe</a></span>
+      <span><a href="../index.html">Prorations</a></span>
+      <span>0001</span>
+    </nav>
+    <h1>What is a proration?</h1>
+    <p class="subtitle">When a subscription changes mid-cycle, Stripe splits the bill into a credit and a charge. This is the one idea everything else rests on.</p>
+    <div class="lesson-meta">
+      <span>Lesson 0001</span>
+      <span>~5 min</span>
+      <span>Core mechanics</span>
+    </div>
+  </header>
+
+  <main class="lesson-body">
+    <h2>The one idea</h2>
+    <p>A customer is paying for a subscription in advance — say <code>$10/month</code>, billed on the 1st. Halfway through the month they upgrade to a <code>$20/month</code> plan. They have already paid for a full month of the cheaper plan, but they'll only use half of it. And they now want the pricier plan for the rest of the month, which they haven't paid for.</p>
+    <p><strong>A proration is how Stripe squares that up.</strong> It does two things at once:</p>
+    <ul>
+      <li><strong>Credits</strong> the customer for the time they paid for but won't use on the old price.</li>
+      <li><strong>Charges</strong> the customer for the time remaining on the new price.</li>
+    </ul>
+    <p>Stripe's own words: a proration is calculated from "the cost of the subscription before and after the change" and the point in the billing period when the change happens (<a href="https://docs.stripe.com/billing/subscriptions/prorations">Stripe Billing — Prorations</a>).</p>
+
+    <h2>Where it shows up: two line items</h2>
+    <p>A proration isn't a single mysterious number. It appears as <strong>two separate line items</strong>, normally on the customer's <em>next</em> invoice:</p>
+    <ul>
+      <li>A negative line — e.g. <em>"Unused time on $10 plan"</em> — the credit.</li>
+      <li>A positive line — e.g. <em>"Remaining time on $20 plan"</em> — the charge.</li>
+    </ul>
+    <p>Because they're two lines, you can always see <em>why</em> a customer was charged what they were. The amount they actually owe for the change is simply the two added together.</p>
+
+    <h2>A worked example</h2>
+    <p>Take the upgrade above, with the change landing exactly halfway through the month:</p>
+    <pre><code>Old plan: $10/month  →  half a month unused  =  −$5.00  (credit)
+New plan: $20/month  →  half a month remaining =  +$10.00 (charge)
+                                          ─────────────────────
+                            Net effect of the change =  +$5.00</code></pre>
+    <p>So the upgrade adds a net <strong>$5.00</strong> for the rest of this period. From next month onward, the customer simply pays the full <code>$20</code> on their normal billing date. This matches Stripe's documented example exactly: upgrading a $10 plan to a $20 plan halfway through bills "an additional 5 USD: −5 USD for unused time on the initial price, and 10 USD for the remaining time on the new price."</p>
+
+    <div class="callout note">
+      <p><strong>A downgrade just flips the signs.</strong> Drop from $20 to $10 mid-month and the credit for unused expensive time outweighs the charge for cheap remaining time — the proration nets <em>negative</em>. Stripe calls these <em>credit prorations</em>. What happens to a negative balance is its own topic (Lesson 4).</p>
+    </div>
+
+    <h2>The proration date</h2>
+    <p>To split the period into "used" and "remaining", Stripe needs an exact instant — the <strong>proration date</strong>. Stripe "prorates to the second", so the credit and charge are computed from precisely when the change is applied, not rounded to the nearest day. That precision matters later when you want to <em>preview</em> an amount and have it still be correct when you apply the change (Lesson 3).</p>
+
+    <div class="quiz" data-answer="a"
+         data-correct="Correct. A −$5 credit for unused time plus a +$10 charge for remaining time nets to $5 owed, shown as two line items."
+         data-incorrect="Not quite. It's two line items — a −$5 credit and a +$10 charge — which net to $5 owed. Re-read the worked example.">
+      <h4>A customer on a $10/mo plan upgrades to $20/mo exactly halfway through the month. What does Stripe add to the next invoice?</h4>
+      <ul class="quiz-options">
+        <li><label><input type="radio" name="q1" value="a"> Two line items that net to five dollars owed</label></li>
+        <li><label><input type="radio" name="q1" value="b"> One line item charging ten dollars for upgrading</label></li>
+        <li><label><input type="radio" name="q1" value="c"> One line item refunding five dollars to customer</label></li>
+        <li><label><input type="radio" name="q1" value="d"> Two line items that net to fifteen dollars owed</label></li>
+      </ul>
+      <button class="quiz-submit">Check answer</button>
+      <div class="quiz-feedback"></div>
+    </div>
+
+    <h2>One catch to carry forward</h2>
+    <p>Calculating a proration and <em>billing</em> it are two different things. By default Stripe creates the proration line items but does <strong>not</strong> charge the customer immediately — the amount waits on the next invoice. Stripe is explicit: "Negative prorations aren't automatically refunded and positive prorations aren't immediately billed." Controlling that timing is exactly what <code>proration_behavior</code> does, which is Lesson 2.</p>
+
+    <h2>Recommended primary source</h2>
+    <p>Read the canonical reference once, end to end — it's short and authoritative: <a href="https://docs.stripe.com/billing/subscriptions/prorations">Stripe Billing — Prorations</a>. Everything in this lesson is drawn from it.</p>
+
+    <div class="callout tip">
+      <p><strong>Questions?</strong> I'm your teacher for this — ask me anything that didn't land. Good ones to test yourself with: "What would the two line items say if the customer <em>downgraded</em> at the 25% mark?" or "Why does Stripe show a credit and a charge instead of one net number?"</p>
+    </div>
+
+    <p>When the credit-plus-charge model feels obvious, you're ready for <a href="0002-proration-behavior.html">Lesson 2</a>. Keep the <a href="../reference/proration-cheatsheet.html">cheatsheet</a> handy for quick review.</p>
+
+    <nav class="lesson-nav">
+      <span></span>
+      <a href="0002-proration-behavior.html">Next: proration_behavior →</a>
+    </nav>
+  </main>
+
+  <footer>
+    <p>Learning Tank · Stripe · Prorations · Lesson 0001 · <a href="../reference/proration-cheatsheet.html">Cheatsheet</a></p>
+  </footer>
+
+  <script src="../../../../assets/quiz.js"></script>
+</body>
+</html>

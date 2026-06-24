@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recurring billing: Subscriptions and Invoices</title>
+  <link rel="stylesheet" href="../../../../assets/style.css">
+</head>
+<body>
+  <header>
+    <nav class="breadcrumb">
+      <span><a href="../../../../index.html">Learning Tank</a></span>
+      <span><a href="../../../index.html">Technology</a></span>
+      <span><a href="../../index.html">Stripe</a></span>
+      <span><a href="../index.html">Core Concepts</a></span>
+      <span>0005</span>
+    </nav>
+    <h1>Recurring billing: Subscriptions and Invoices</h1>
+    <p class="subtitle">Recurring revenue is the one-time payment machinery on a timer. A Subscription ties a Customer to a Price; each cycle it raises an Invoice that pays itself.</p>
+    <div class="lesson-meta">
+      <span>Lesson 0005</span>
+      <span>~8 min</span>
+      <span>Money flow: recurring</span>
+    </div>
+  </header>
+
+  <main class="lesson-body">
+    <h2>What a Subscription connects</h2>
+    <p>A <strong>Subscription</strong> is the object that puts billing on autopilot. It connects two things you already know:</p>
+    <pre><code>Subscription (sub_...)
+   ├─ a Customer        who to bill, and which saved card to use
+   └─ Subscription item(s) ── each points at a recurring Price (× quantity)</code></pre>
+    <p>Each line in a subscription is a <strong>subscription item</strong> = one recurring <a href="0002-products-and-prices.html">Price</a> with a quantity. Most subscriptions have a single item ("1 × Pro Plan at $20/month"); a subscription with several items is how you bill a base plan plus add-ons on one cycle.</p>
+
+    <div class="callout note">
+      <p><strong>It reuses the parts you've met.</strong> The Customer (Lesson 3), the recurring Price (Lesson 2), the saved PaymentMethod (Lesson 3) — a Subscription just binds them together and adds a clock. Nothing new about <em>how</em> money moves; only <em>when</em>.</p>
+    </div>
+
+    <h2>The billing cycle and the Invoice</h2>
+    <p>At the start of each billing period the Subscription raises an <strong>Invoice</strong> — an itemised bill for that period. Straight from Stripe: "Whenever a payment is due for a subscription, Stripe generates an invoice and a PaymentIntent," and "the subscription continues to generate invoices each billing period." The Invoice carries <strong>line items</strong> (one per subscription item, plus any one-off charges or <a href="../../10.01 Prorations/index.html">prorations</a>), and Stripe then tries to pay it automatically with the customer's default card.</p>
+    <pre><code>Billing date arrives
+        │
+        ▼
+Stripe creates an Invoice   (line items for this cycle)
+        │
+        ▼
+Invoice is finalised        (becomes "open" — the amount is locked in)
+        │
+        ▼
+Stripe creates a PaymentIntent and charges the default card
+        │
+        ├─ paid       ──> Invoice "paid"; service continues
+        └─ failed     ──> Invoice "open"; retries / dunning begin</code></pre>
+    <p>That bottom step is the whole point: <strong>an Invoice is paid by a PaymentIntent</strong> — the very object from <a href="0004-payment-intent-lifecycle.html">Lesson 4</a>. Recurring billing doesn't invent a new way to move money; it auto-generates the same one-time payment flow on schedule. The map's two money flows converge here.</p>
+
+    <h2>The Subscription's status tells you the health of the relationship</h2>
+    <p>A Subscription carries a <code>status</code> reflecting whether billing is current:</p>
+    <ul>
+      <li><code>trialing</code> — in a free trial; no charge yet.</li>
+      <li><code>active</code> — paid and current. The normal happy state.</li>
+      <li><code>past_due</code> — a payment failed; Stripe is retrying (this retry process is called <em>dunning</em>).</li>
+      <li><code>canceled</code> / <code>unpaid</code> — ended, or given up on after retries.</li>
+    </ul>
+    <p>Your app typically grants or revokes access based on this status — usually by listening for the subscription's update webhooks rather than checking on every request.</p>
+
+    <div class="callout note">
+      <p><strong>Where Prorations fit.</strong> When a subscriber upgrades, downgrades, or changes quantity <em>mid-cycle</em>, Stripe adds proration line items to the next Invoice — a credit for unused time and a charge for the new rate. That mechanism is its own topic: <a href="../../10.01 Prorations/index.html">10.01 Prorations</a>. Here, just note that those adjustments ride on the ordinary Invoice you've now seen.</p>
+    </div>
+
+    <h2>Invoices exist outside subscriptions too</h2>
+    <p>An Invoice is a general "itemised bill we'll try to collect" object. Subscriptions are the most common <em>source</em> of invoices, but you can also create a standalone invoice for a one-off bill (add <strong>invoice items</strong>, finalise, send). Same object, same paid-by-a-PaymentIntent ending — which is why learning it once pays off twice.</p>
+
+    <div class="quiz" data-answer="a"
+         data-correct="Correct. Each cycle the Subscription raises an Invoice, and Stripe pays that Invoice with a PaymentIntent — the same one-time payment object from Lesson 4."
+         data-incorrect="Not quite. A Subscription doesn't charge the card directly or magically — each cycle it raises an Invoice that's paid by a PaymentIntent, reusing the Lesson 4 flow. Re-read 'The billing cycle and the Invoice'.">
+      <h4>When a monthly subscription renews, how does the money actually get collected?</h4>
+      <ul class="quiz-options">
+        <li><label><input type="radio" name="q1" value="a"> An Invoice is raised and paid by a PaymentIntent</label></li>
+        <li><label><input type="radio" name="q1" value="b"> The Subscription charges the saved card directly</label></li>
+        <li><label><input type="radio" name="q1" value="c"> The Price object debits the customer itself</label></li>
+        <li><label><input type="radio" name="q1" value="d"> Stripe transfers from the customer's balance</label></li>
+      </ul>
+      <button class="quiz-submit">Check answer</button>
+      <div class="quiz-feedback"></div>
+    </div>
+
+    <h2>Recommended primary source</h2>
+    <p>Read <a href="https://docs.stripe.com/billing/subscriptions/overview">How subscriptions work</a> for the lifecycle, then skim <a href="https://docs.stripe.com/invoicing/overview">Invoicing</a> to see the Invoice object on its own.</p>
+
+    <div class="callout tip">
+      <p><strong>Questions?</strong> Ask me. Test yourself: "Which object actually moves the money each month?" or "A renewal payment fails — which object goes <code>past_due</code>, and which one is <code>open</code>?"</p>
+    </div>
+
+    <p>You now hold the whole object graph and both money flows. The last lesson turns the map outward: <a href="0006-integration-options.html">Lesson 6</a> — which of Stripe's integration options should you actually reach for?</p>
+
+    <nav class="lesson-nav">
+      <a href="0004-payment-intent-lifecycle.html">← Lesson 0004</a>
+      <a href="0006-integration-options.html">Next: your integration options →</a>
+    </nav>
+  </main>
+
+  <footer>
+    <p>Learning Tank · Stripe · Core Concepts · Lesson 0005 · <a href="../reference/stripe-object-map.html">Object map</a></p>
+  </footer>
+
+  <script src="../../../../assets/quiz.js"></script>
+</body>
+</html>

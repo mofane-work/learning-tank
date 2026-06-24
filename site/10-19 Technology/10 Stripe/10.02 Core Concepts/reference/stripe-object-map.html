@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stripe Core Concepts — Object map</title>
+  <link rel="stylesheet" href="../../../../assets/style.css">
+</head>
+<body>
+  <header>
+    <nav class="breadcrumb">
+      <span><a href="../../../../index.html">Learning Tank</a></span>
+      <span><a href="../../../index.html">Technology</a></span>
+      <span><a href="../../index.html">Stripe</a></span>
+      <span><a href="../index.html">Core Concepts</a></span>
+      <span>Object map</span>
+    </nav>
+    <h1>Core Concepts — Object map</h1>
+    <p class="subtitle">The compressed essence. Print it, pin it, glance at it.</p>
+  </header>
+
+  <main class="lesson-body">
+    <h2>The graph</h2>
+    <pre><code>          CATALOGUE                         PARTIES
+   Product ──has many──> Price       Customer ──has saved──> PaymentMethod
+   (what)               (how much/        (who)               (a card, bank...)
+                         how often)         │ default method ─┘
+                            │               │
+   ════════════════════════╪═══════════════╪═════════════════════════
+   ONE-TIME:    PaymentIntent ──> Charge ──> Balance txn ──> Payout (your bank)
+                (the payment)   (an attempt)
+   RECURRING:   Subscription ──> Invoice ──> PaymentIntent ──> Charge
+                (Customer+Price,  (per cycle,   (same one-time flow on a timer)
+                 on a clock)       auto-billed)</code></pre>
+
+    <h2>The objects in one line each</h2>
+    <ul>
+      <li><strong>Product</strong> (<code>prod_</code>) — what you sell; name + description, no price.</li>
+      <li><strong>Price</strong> (<code>price_</code>) — how much + how often; immutable; one Product → many Prices; recurring or one-time.</li>
+      <li><strong>Customer</strong> (<code>cus_</code>) — who you charge; the hub for cards, subscriptions, invoices.</li>
+      <li><strong>PaymentMethod</strong> (<code>pm_</code>) — a card/bank/wallet; attach to a Customer to reuse.</li>
+      <li><strong>SetupIntent</strong> (<code>seti_</code>) — save &amp; validate a card <em>without</em> charging, for later use.</li>
+      <li><strong>PaymentIntent</strong> (<code>pi_</code>) — tracks one payment through its statuses to <code>succeeded</code>.</li>
+      <li><strong>Charge</strong> (<code>ch_</code>) — one attempt to move money on a PaymentIntent (can be several).</li>
+      <li><strong>Subscription</strong> (<code>sub_</code>) — ties a Customer to recurring Price(s); raises an Invoice each cycle.</li>
+      <li><strong>Invoice</strong> (<code>in_</code>) — an itemised bill, paid by a PaymentIntent.</li>
+      <li><strong>Payout</strong> (<code>po_</code>) — Stripe moving your balance to your bank.</li>
+    </ul>
+
+    <h2>PaymentIntent statuses</h2>
+    <pre><code>requires_payment_method → requires_confirmation → requires_action
+   → processing → succeeded            (side exits: canceled, requires_capture)
+Fulfil only on succeeded.</code></pre>
+
+    <h2>Key facts</h2>
+    <ul>
+      <li>Everything is an <strong>object with a prefixed ID</strong>; the Dashboard and API act on the same objects.</li>
+      <li><strong>Test mode and live mode</strong> are separate accounts with separate keys and data.</li>
+      <li>Amounts are in the <strong>smallest currency unit</strong> — <code>2000</code> = $20.00.</li>
+      <li><strong>Both money flows end in a PaymentIntent + Charge</strong>; recurring is one-time on a timer.</li>
+      <li><strong>Webhooks</strong> tell your server when async things happen (<code>payment_intent.succeeded</code>, subscription went <code>past_due</code>).</li>
+      <li>Mid-cycle subscription changes → proration line items on the next Invoice — see <a href="../../10.01 Prorations/index.html">10.01 Prorations</a>.</li>
+    </ul>
+
+    <h2>Which integration option?</h2>
+    <pre><code>No website / one-off?            → Payment Link        (no code)
+Standard checkout, want it fast? → Checkout            (hosted page — the default)
+Must match your own UI exactly?  → Elements            (your page, Stripe's fields)
+Genuinely unusual flow?          → Payment Intents API (build it all)
+Recurring billing?               → Billing + Checkout + Customer Portal</code></pre>
+    <p>All four end in the same objects; they differ in how much Stripe builds for you (tax, discounts, address collection, subscriptions).</p>
+
+    <h2>Glossary anchors</h2>
+    <p><strong>Object</strong> · <strong>Product</strong> · <strong>Price</strong> · <strong>Customer</strong> · <strong>PaymentIntent</strong> · <strong>Charge</strong> · <strong>Subscription</strong> · <strong>Invoice</strong> — see <a href="../GLOSSARY.md">GLOSSARY.md</a>.</p>
+
+    <p>Source: <a href="https://docs.stripe.com/api">Stripe API reference</a> and the per-lesson primary sources.</p>
+
+    <nav class="lesson-nav">
+      <a href="../lessons/0001-the-stripe-object-model.html">← Lesson 0001</a>
+      <span></span>
+    </nav>
+  </main>
+
+  <footer>
+    <p>Learning Tank · Stripe · Core Concepts · Reference</p>
+  </footer>
+</body>
+</html>

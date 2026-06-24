@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>One-time payments: the PaymentIntent lifecycle</title>
+  <link rel="stylesheet" href="../../../../assets/style.css">
+</head>
+<body>
+  <header>
+    <nav class="breadcrumb">
+      <span><a href="../../../../index.html">Learning Tank</a></span>
+      <span><a href="../../../index.html">Technology</a></span>
+      <span><a href="../../index.html">Stripe</a></span>
+      <span><a href="../index.html">Core Concepts</a></span>
+      <span>0004</span>
+    </nav>
+    <h1>One-time payments: the PaymentIntent lifecycle</h1>
+    <p class="subtitle">A single payment isn't one event — it's an object that moves through a series of states. Follow one from "I owe $20" all the way to money in your bank.</p>
+    <div class="lesson-meta">
+      <span>Lesson 0004</span>
+      <span>~8 min</span>
+      <span>Money flow: one-time</span>
+    </div>
+  </header>
+
+  <main class="lesson-body">
+    <h2>Why a payment needs its own object</h2>
+    <p>A card payment isn't instantaneous or guaranteed. It may need the bank's authentication, it may be retried, it may take days (for some methods), and it can fail. So Stripe models a payment as a <strong>PaymentIntent</strong> — an object that, in Stripe's words, "tracks a payment from creation through checkout, and triggers additional authentication steps when required." The PaymentIntent <em>is</em> the payment; its <code>status</code> tells you where it's got to.</p>
+
+    <h2>The three actors</h2>
+    <pre><code>PaymentIntent  ── the payment itself, with an amount and a status
+   + PaymentMethod  ── the card (or other method) that will pay it
+   ──────────────
+   = Charge         ── one attempt to actually move the money</code></pre>
+    <p>You create a PaymentIntent for an amount, attach a PaymentMethod, and <strong>confirm</strong> it. Confirming produces a <strong>Charge</strong> — the record of one attempt. If a first attempt fails and the customer retries, you can get more than one Charge on the same PaymentIntent: Stripe notes "a PaymentIntent might have more than one Charge object… if there were multiple payment attempts." The PaymentIntent is the payment; each Charge is an attempt at it.</p>
+
+    <h2>The state machine</h2>
+    <p>A PaymentIntent walks through a defined set of statuses. You rarely drive all of these by hand — a tool like Checkout does it for you — but recognising them tells you exactly where a payment is stuck:</p>
+    <pre><code>requires_payment_method   no card attached yet (or the last one failed)
+        │
+        ▼
+requires_confirmation     card attached, ready to confirm
+        │
+        ▼
+requires_action           needs the customer to authenticate (e.g. 3D Secure)
+        │
+        ▼
+processing                submitted; some methods take a while
+        │
+        ▼
+succeeded                 done — the funds are yours to fulfil against</code></pre>
+    <p>Straight from the docs, two anchors worth memorising:</p>
+    <ul>
+      <li><strong>Start:</strong> "After you create the PaymentIntent, its status is <code>requires_payment_method</code> until you attach a payment method."</li>
+      <li><strong>End:</strong> "A PaymentIntent with a <code>succeeded</code> status means that the corresponding payment flow is complete. The funds are now in your account and you can confidently fulfil the order."</li>
+    </ul>
+    <p>Two side exits: <code>canceled</code> (you call it off before it processes — "cancellation invalidates the PaymentIntent for future payment attempts, releases any held funds, and can't be undone") and <code>requires_capture</code>, which appears only if you <em>authorise</em> funds now and <em>capture</em> them later (e.g. hold on a hotel booking, charge at checkout).</p>
+
+    <div class="callout warning">
+      <p><strong>Don't fulfil before <code>succeeded</code>.</strong> The single most common payments bug is shipping the goods when the customer clicks "pay" rather than when the PaymentIntent actually reaches <code>succeeded</code>. A payment in <code>requires_action</code> or <code>processing</code> has <em>not</em> paid yet. Wait for <code>succeeded</code> — ideally via the <code>payment_intent.succeeded</code> webhook from Lesson 1.</p>
+    </div>
+
+    <h2>Authentication (SCA), conceptually</h2>
+    <p>Sometimes the bank wants the customer to prove it's really them — a fingerprint, a banking-app tap, a code. That's <strong>Strong Customer Authentication</strong>, required for many European cards. In the model it's just the <code>requires_action</code> state: the PaymentIntent pauses, the customer authenticates, and it continues. You don't implement the cryptography — you just handle the fact that a payment can need a step in the middle. This is a big reason the PaymentIntent exists rather than a single "charge this card" call.</p>
+
+    <h2>From Charge to cash in your bank</h2>
+    <p>A <code>succeeded</code> payment isn't money in your bank account <em>yet</em> — it's money in your <strong>Stripe balance</strong>. The tail of the flow:</p>
+    <pre><code>Charge ──> Balance transaction ──> Payout
+(the attempt)  (the +amount, −fee     (Stripe sends your
+               on your Stripe balance)  balance to your bank)</code></pre>
+    <ul>
+      <li>A <strong>balance transaction</strong> records the gross amount, Stripe's fee, and the net that lands on your balance.</li>
+      <li>A <strong>Payout</strong> is Stripe moving your accumulated balance to your real bank account, on a schedule (often daily). Refunds and disputes flow back through the same balance.</li>
+    </ul>
+    <p>So "the customer paid" and "the money is in my bank" are two distinct moments, with your Stripe balance in between.</p>
+
+    <div class="quiz" data-answer="d"
+         data-correct="Correct. Only the succeeded status means the payment is complete and the funds are yours to fulfil against; the earlier states haven't moved money yet."
+         data-incorrect="Not quite. requires_action means the customer still has to authenticate, processing means it's in flight — neither is paid. Fulfil only on succeeded. Re-read 'The state machine'.">
+      <h4>At which PaymentIntent status is it safe to ship the goods?</h4>
+      <ul class="quiz-options">
+        <li><label><input type="radio" name="q1" value="a"> requires_confirmation — the card is attached</label></li>
+        <li><label><input type="radio" name="q1" value="b"> requires_action — the customer is authenticating</label></li>
+        <li><label><input type="radio" name="q1" value="c"> processing — the payment was submitted</label></li>
+        <li><label><input type="radio" name="q1" value="d"> succeeded — the funds are in your account</label></li>
+      </ul>
+      <button class="quiz-submit">Check answer</button>
+      <div class="quiz-feedback"></div>
+    </div>
+
+    <h2>Recommended primary source</h2>
+    <p>Two short pages: the <a href="https://docs.stripe.com/payments/payment-intents">Payment Intents API overview</a> and the <a href="https://docs.stripe.com/payments/paymentintents/lifecycle">PaymentIntent lifecycle</a>, where every status above is defined.</p>
+
+    <div class="callout tip">
+      <p><strong>Questions?</strong> Ask me. Test yourself: "Why can one PaymentIntent have several Charges?" or "My customer says they paid but my balance is empty — which two moments am I confusing?"</p>
+    </div>
+
+    <p>That's a single sale, end to end. Next we put it on a timer: <a href="0005-subscriptions-and-invoices.html">Lesson 5</a> shows how recurring billing reuses these exact objects.</p>
+
+    <nav class="lesson-nav">
+      <a href="0003-customers-and-payment-methods.html">← Lesson 0003</a>
+      <a href="0005-subscriptions-and-invoices.html">Next: Subscriptions &amp; Invoices →</a>
+    </nav>
+  </main>
+
+  <footer>
+    <p>Learning Tank · Stripe · Core Concepts · Lesson 0004 · <a href="../reference/stripe-object-map.html">Object map</a></p>
+  </footer>
+
+  <script src="../../../../assets/quiz.js"></script>
+</body>
+</html>

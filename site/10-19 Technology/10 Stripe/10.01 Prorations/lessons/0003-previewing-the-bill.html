@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Previewing the bill before you change anything</title>
+  <link rel="stylesheet" href="../../../../assets/style.css">
+</head>
+<body>
+  <header>
+    <nav class="breadcrumb">
+      <span><a href="../../../../index.html">Learning Tank</a></span>
+      <span><a href="../../../index.html">Technology</a></span>
+      <span><a href="../../index.html">Stripe</a></span>
+      <span><a href="../index.html">Prorations</a></span>
+      <span>0003</span>
+    </nav>
+    <h1>Previewing the bill before you change anything</h1>
+    <p class="subtitle">"What will the customer actually be charged if we switch them today?" Stripe can answer that exactly — without touching the subscription.</p>
+    <div class="lesson-meta">
+      <span>Lesson 0003</span>
+      <span>~5 min</span>
+      <span>Forecasting</span>
+    </div>
+  </header>
+
+  <main class="lesson-body">
+    <h2>Why preview at all</h2>
+    <p>You now know a change produces a credit and a charge (<a href="0001-what-is-proration.html">Lesson 1</a>) and that you can bill it now or later (<a href="0002-proration-behavior.html">Lesson 2</a>). The missing piece for a product or finance decision is the <strong>number itself</strong>, <em>before</em> you commit — to show the customer a "you'll pay $X today" confirmation, or to sanity-check a migration's revenue impact.</p>
+
+    <h2>The preview invoice</h2>
+    <p>Stripe gives you a dry run. You "create a preview invoice to preview changes to a subscription. This API call <strong>doesn't modify the subscription</strong>. Instead, it returns the upcoming invoice based only on the parameters that you pass." You hand it the proposed change (the new price), and it hands back exactly the line items that <em>would</em> appear — the unused-time credit and the remaining-time charge — and the total.</p>
+    <div class="callout note">
+      <p>The thing being returned is a full <strong>upcoming invoice</strong>: the same two proration line items from Lesson 1, plus whatever else is due, totalled. Nothing is charged and nothing changes on the customer's account — it's a quote.</p>
+    </div>
+
+    <h2>The catch: prorations move every second</h2>
+    <p>Recall that Stripe "prorates to the second" (Lesson 1). That precision creates a subtle trap: "prorated amounts might change between the time they're previewed and the time the update is made." Preview at 2:00:00 and apply at 2:00:45 and the unused-time slice has shrunk slightly — so the quote you showed the customer no longer matches the charge.</p>
+
+    <h2>Pinning it with <code>proration_date</code></h2>
+    <p>The fix is to freeze the clock. Capture one timestamp — the <strong>proration date</strong> — and pass it to <em>both</em> calls:</p>
+    <ul>
+      <li>Pass it to the preview, so the quote is computed at that instant.</li>
+      <li>Pass the <em>same</em> value when you actually apply the change, so "the proration is calculated at the same time."</li>
+    </ul>
+    <p>Now the quoted number and the billed number are computed from the identical moment, and they match to the cent. This is the single most important habit when you show a customer a price before they confirm.</p>
+    <pre><code>1. proration_date = now            # capture one instant
+2. preview(change, proration_date) # → show "$5.00 due today"
+3. customer clicks confirm
+4. apply(change, proration_date)   # same instant → charges exactly $5.00</code></pre>
+
+    <div class="quiz" data-answer="b"
+         data-correct="Correct. Stripe prorates to the second, so without a pinned proration_date the preview and the real charge are computed at different instants and can differ."
+         data-incorrect="Not quite. The preview is accurate — the issue is timing. Because Stripe prorates to the second, the amount drifts between previewing and applying unless you pin proration_date.">
+      <h4>You preview an upgrade, show the customer "$5.00 due today," then they confirm a minute later and are charged $4.97. Why, and what prevents it?</h4>
+      <ul class="quiz-options">
+        <li><label><input type="radio" name="q1" value="a"> Stripe rounds previews down; charging full price always fixes this</label></li>
+        <li><label><input type="radio" name="q1" value="b"> Proration drifts per second; pass the same proration_date to both</label></li>
+        <li><label><input type="radio" name="q1" value="c"> Previews exclude tax; enabling automatic tax aligns the two amounts</label></li>
+        <li><label><input type="radio" name="q1" value="d"> The preview was wrong; only always_invoice returns accurate amounts</label></li>
+      </ul>
+      <button class="quiz-submit">Check answer</button>
+      <div class="quiz-feedback"></div>
+    </div>
+
+    <h2>Recommended primary source</h2>
+    <p>See the "Preview a proration" section of <a href="https://docs.stripe.com/billing/subscriptions/prorations">Stripe Billing — Prorations</a>, and the <a href="https://docs.stripe.com/api/invoices/create_preview">Create preview invoice</a> API reference.</p>
+
+    <div class="callout tip">
+      <p><strong>Questions?</strong> Ask away. Self-test: "Why is a preview invoice safer to show a customer than just doing the maths from Lesson 1 yourself?" (Hint: discounts, tax, and anything else already sitting on the upcoming invoice.)</p>
+    </div>
+
+    <p>Last stop: the places where prorations surprise people — trials, anchors, stacked changes, and negative balances. That's <a href="0004-edge-cases.html">Lesson 4</a>.</p>
+
+    <nav class="lesson-nav">
+      <a href="0002-proration-behavior.html">← Lesson 0002</a>
+      <a href="0004-edge-cases.html">Next: edge cases &amp; gotchas →</a>
+    </nav>
+  </main>
+
+  <footer>
+    <p>Learning Tank · Stripe · Prorations · Lesson 0003 · <a href="../reference/proration-cheatsheet.html">Cheatsheet</a></p>
+  </footer>
+
+  <script src="../../../../assets/quiz.js"></script>
+</body>
+</html>

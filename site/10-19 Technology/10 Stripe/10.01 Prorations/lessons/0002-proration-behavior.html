@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controlling proration: the three behaviours</title>
+  <link rel="stylesheet" href="../../../../assets/style.css">
+</head>
+<body>
+  <header>
+    <nav class="breadcrumb">
+      <span><a href="../../../../index.html">Learning Tank</a></span>
+      <span><a href="../../../index.html">Technology</a></span>
+      <span><a href="../../index.html">Stripe</a></span>
+      <span><a href="../index.html">Prorations</a></span>
+      <span>0002</span>
+    </nav>
+    <h1>Controlling proration: the three behaviours</h1>
+    <p class="subtitle">Calculating a proration and actually billing it are two separate decisions. One setting — <code>proration_behavior</code> — controls both.</p>
+    <div class="lesson-meta">
+      <span>Lesson 0002</span>
+      <span>~6 min</span>
+      <span>The settings</span>
+    </div>
+  </header>
+
+  <main class="lesson-body">
+    <h2>Recap, then the gap</h2>
+    <p>In <a href="0001-what-is-proration.html">Lesson 1</a> you saw that a mid-cycle change produces a credit line and a charge line. What we glossed over: <strong>when does the customer actually pay?</strong> By default Stripe makes the line items but doesn't charge right away — "positive prorations aren't immediately billed." The <code>proration_behavior</code> setting is how you choose what happens. It has exactly three values.</p>
+
+    <h2>1. <code>create_prorations</code> — the default</h2>
+    <p>Stripe creates the proration line items and parks them. They're "only invoiced immediately under certain conditions"; otherwise they ride along on the customer's <strong>next regular invoice</strong>. The customer is billed accurately, but not today.</p>
+    <blockquote>Reach for it when: the change is an ordinary upgrade/downgrade and you're happy for the adjustment to appear on the next bill. This is the safe default.</blockquote>
+
+    <h2>2. <code>always_invoice</code> — bill it now</h2>
+    <p>Stripe "calculates the proration, then immediately generates an invoice." Same credit-and-charge maths as the default — but the customer is charged for the net amount straight away rather than waiting for the next cycle.</p>
+    <blockquote>Reach for it when: you want the cash now, or you want the customer to confirm-and-pay an upgrade in the moment (e.g. "pay $5 to upgrade today").</blockquote>
+    <div class="callout warning">
+      <p><strong>Failure mode worth knowing.</strong> If that immediate charge fails, the subscription change still goes through — Stripe says "the subscription change request succeeds and the subscription transitions to <code>past_due</code>." So the customer is on the new plan but now owes money. Finance needs to track that dunning, not assume the upgrade was clean.</p>
+    </div>
+
+    <h2>3. <code>none</code> — skip proration entirely</h2>
+    <p>No credit, no charge, no adjustment. The change takes effect and "customers are billed the full amount at the new price when the next invoice is generated." Nobody is credited for unused time and nobody is charged for the partial period.</p>
+    <blockquote>Reach for it when: you deliberately don't want to nickel-and-dime — a goodwill plan swap, or when a <em>trial</em> is already absorbing the partial period (Lesson 4). Just know the customer may get more or less than they strictly paid for, in their favour or yours.</blockquote>
+
+    <h2>Side by side</h2>
+    <p>Same upgrade as Lesson 1 ($10 → $20, halfway through the month):</p>
+    <pre><code>create_prorations  →  −$5 credit & +$10 charge appear on the NEXT invoice
+always_invoice     →  −$5 credit & +$10 charge billed NOW (net $5 today)
+none               →  no proration lines; customer pays full $20 next invoice</code></pre>
+
+    <div class="quiz" data-answer="c"
+         data-correct="Right. always_invoice runs the same proration maths but generates an invoice immediately, so the customer is charged the net amount today."
+         data-incorrect="Not quite. create_prorations defers to the next invoice; none skips proration; only always_invoice bills the net amount immediately.">
+      <h4>You want a customer to pay the net upgrade cost <em>today</em>, the moment they switch plans. Which <code>proration_behavior</code> do you set?</h4>
+      <ul class="quiz-options">
+        <li><label><input type="radio" name="q1" value="a"> create_prorations, the standard default proration setting</label></li>
+        <li><label><input type="radio" name="q1" value="b"> none, which skips the proration lines entirely here</label></li>
+        <li><label><input type="radio" name="q1" value="c"> always_invoice, which bills the proration right away</label></li>
+        <li><label><input type="radio" name="q1" value="d"> manual, by editing the upcoming invoice by hand</label></li>
+      </ul>
+      <button class="quiz-submit">Check answer</button>
+      <div class="quiz-feedback"></div>
+    </div>
+
+    <h2>One more nuance</h2>
+    <p>Setting <code>proration_behavior</code> on a single change affects only that change. Setting it to <code>none</code> at the subscription level "turns off all future prorations for a subscription" — a standing policy, not a one-off. Know which one you (or your billing system) are doing.</p>
+
+    <h2>Recommended primary source</h2>
+    <p>The behaviour list and the <code>past_due</code> caveat both live in <a href="https://docs.stripe.com/billing/subscriptions/prorations">Stripe Billing — Prorations</a>; the immediate-billing flow is also covered in <a href="https://docs.stripe.com/billing/subscriptions/upgrade-downgrade">Upgrade and downgrade subscriptions</a>.</p>
+
+    <div class="callout tip">
+      <p><strong>Questions?</strong> Ask me anything. A good self-test: "A customer downgrades and you set <code>none</code> — who comes out ahead, and why might that be exactly what you want?"</p>
+    </div>
+
+    <p>Next, the practical question every product person asks: <em>how much will this actually cost before I click the button?</em> That's <a href="0003-previewing-the-bill.html">Lesson 3</a>.</p>
+
+    <nav class="lesson-nav">
+      <a href="0001-what-is-proration.html">← Lesson 0001</a>
+      <a href="0003-previewing-the-bill.html">Next: previewing the bill →</a>
+    </nav>
+  </main>
+
+  <footer>
+    <p>Learning Tank · Stripe · Prorations · Lesson 0002 · <a href="../reference/proration-cheatsheet.html">Cheatsheet</a></p>
+  </footer>
+
+  <script src="../../../../assets/quiz.js"></script>
+</body>
+</html>

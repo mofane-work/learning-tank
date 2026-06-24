@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edge cases &amp; gotchas</title>
+  <link rel="stylesheet" href="../../../../assets/style.css">
+</head>
+<body>
+  <header>
+    <nav class="breadcrumb">
+      <span><a href="../../../../index.html">Learning Tank</a></span>
+      <span><a href="../../../index.html">Technology</a></span>
+      <span><a href="../../index.html">Stripe</a></span>
+      <span><a href="../index.html">Prorations</a></span>
+      <span>0004</span>
+    </nav>
+    <h1>Edge cases &amp; gotchas</h1>
+    <p class="subtitle">The core model is simple. These are the four places it bites people in production.</p>
+    <div class="lesson-meta">
+      <span>Lesson 0004</span>
+      <span>~7 min</span>
+      <span>Gotchas</span>
+    </div>
+  </header>
+
+  <main class="lesson-body">
+    <p>You've got the model (<a href="0001-what-is-proration.html">L1</a>), the controls (<a href="0002-proration-behavior.html">L2</a>), and the preview (<a href="0003-previewing-the-bill.html">L3</a>). This final lesson is a tour of where prorations behave in ways that surprise a product or finance reader.</p>
+
+    <h2>1. The billing cycle anchor</h2>
+    <p>The <strong>billing cycle anchor</strong> is "the reference point that aligns future billing period dates" — it fixes which day of the month (or week, or year) the customer is billed on. Prorations are always measured against the period this anchor defines.</p>
+    <p>The gotcha is <em>moving</em> it. If you reset the anchor to now, "Stripe immediately sends an invoice." And critically: "Enable proration to credit the customer for any days already paid in the previous period. <strong>Disabling proration might result in overcharging your customer.</strong>" So resetting an anchor with <code>proration_behavior=none</code> can make a customer pay twice for the same days.</p>
+
+    <h2>2. Free trials</h2>
+    <p>A free trial "automatically set[s] the billing cycle anchor to the trial end date." That's usually what you want — but it can leave a partial period that Stripe then prorates. The docs warn this "might result in a prorated invoice following the trial period." Their example: a customer already paid through July 23, so a "free" period from a new trial "only applies to July 24 through July 31."</p>
+    <div class="callout note">
+      <p>The standard move: when you're using a trial purely to shift someone's billing date, set <code>proration_behavior=none</code>, "because the length of the trial period accounts for the portion already paid." The trial absorbs the partial period instead of a proration doing it.</p>
+    </div>
+
+    <h2>3. Multiple changes in one period</h2>
+    <p>Prorations <strong>stack</strong>. Change a plan twice before the next invoice and you don't get one tidy adjustment — you get a proration for each change, each crediting the state before it and charging the state after. Upgrade then downgrade in the same week and the next invoice carries several credit and charge lines that only make sense read in order. For finance, the lesson is: don't expect one line per customer per period; expect one pair <em>per change</em>.</p>
+
+    <h2>4. Negative prorations and credit balance</h2>
+    <p>When a proration nets negative (a downgrade, a cancellation mid-period), the money doesn't come back as a refund. Stripe is blunt: "<strong>Negative prorations aren't automatically refunded.</strong>" Instead the credit sits on the customer's account as <strong>credit balance</strong> and is applied against their <em>future</em> invoices, quietly reducing what they owe next time.</p>
+    <p>So a downgrade often produces <em>no immediate visible event</em> — no refund, no charge — just a credit that surfaces weeks later as a smaller invoice. If a customer says "I downgraded and got nothing back," this is usually why.</p>
+    <div class="callout warning">
+      <p><strong>And one boundary:</strong> proration "only appl[ies] to charges that occur ahead of the billing period. Usage-based billing isn't subject to proration." Metered usage is billed for what was actually used, so there's nothing to prorate — don't expect proration lines for usage items.</p>
+    </div>
+
+    <div class="quiz" data-answer="d"
+         data-correct="Correct. Negative prorations aren't auto-refunded — the amount becomes credit balance that reduces the customer's future invoices."
+         data-incorrect="Not quite. Stripe doesn't auto-refund negative prorations and doesn't carry them to a new card charge — the amount becomes credit balance applied to future invoices.">
+      <h4>A customer downgrades mid-cycle, producing a net <em>negative</em> proration. With default settings, what happens to that money?</h4>
+      <ul class="quiz-options">
+        <li><label><input type="radio" name="q1" value="a"> Stripe refunds it automatically back to their card today</label></li>
+        <li><label><input type="radio" name="q1" value="b"> It is lost entirely; downgrades never return any value</label></li>
+        <li><label><input type="radio" name="q1" value="c"> Stripe charges their card the difference at once</label></li>
+        <li><label><input type="radio" name="q1" value="d"> It becomes credit balance applied to future invoices</label></li>
+      </ul>
+      <button class="quiz-submit">Check answer</button>
+      <div class="quiz-feedback"></div>
+    </div>
+
+    <h2>You've covered the topic</h2>
+    <p>That's the whole arc: the credit-plus-charge model, the three behaviours, previewing safely, and the four gotchas. Against the mission, you can now reason about what a mid-cycle change does to a customer's bill and to revenue — and explain it to a teammate.</p>
+
+    <h2>Recommended primary source</h2>
+    <p>Anchors and trials: <a href="https://docs.stripe.com/billing/subscriptions/billing-cycle">Set the subscription billing cycle date</a>. Credits and the usage-based boundary: <a href="https://docs.stripe.com/billing/subscriptions/prorations">Stripe Billing — Prorations</a>.</p>
+
+    <div class="callout tip">
+      <p><strong>Questions?</strong> This is the deepest lesson — ask about anything that felt slippery. Strong self-test: "A customer on a trial that just shifted their billing date gets an unexpected small invoice. Walk through why, and which one setting would have prevented it."</p>
+    </div>
+
+    <p>Review anytime with the <a href="../reference/proration-cheatsheet.html">cheatsheet</a>, and tell me where you'd like to go next — a sibling Stripe topic (webhooks, subscription schedules) lives one <code>/new-topic</code> away.</p>
+
+    <nav class="lesson-nav">
+      <a href="0003-previewing-the-bill.html">← Lesson 0003</a>
+      <a href="../reference/proration-cheatsheet.html">Cheatsheet →</a>
+    </nav>
+  </main>
+
+  <footer>
+    <p>Learning Tank · Stripe · Prorations · Lesson 0004 · <a href="../reference/proration-cheatsheet.html">Cheatsheet</a></p>
+  </footer>
+
+  <script src="../../../../assets/quiz.js"></script>
+</body>
+</html>

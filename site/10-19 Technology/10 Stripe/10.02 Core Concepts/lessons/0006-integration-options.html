@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your integration options</title>
+  <link rel="stylesheet" href="../../../../assets/style.css">
+</head>
+<body>
+  <header>
+    <nav class="breadcrumb">
+      <span><a href="../../../../index.html">Learning Tank</a></span>
+      <span><a href="../../../index.html">Technology</a></span>
+      <span><a href="../../index.html">Stripe</a></span>
+      <span><a href="../index.html">Core Concepts</a></span>
+      <span>0006</span>
+    </nav>
+    <h1>Your integration options</h1>
+    <p class="subtitle">The payoff. Every Stripe integration creates the objects you've now learned — the only real choice is <em>how much of the work Stripe does for you</em>. Here's the spectrum, and how to pick.</p>
+    <div class="lesson-meta">
+      <span>Lesson 0006</span>
+      <span>~8 min</span>
+      <span>Choosing an approach</span>
+    </div>
+  </header>
+
+  <main class="lesson-body">
+    <h2>One spectrum: hand it to Stripe ↔ build it yourself</h2>
+    <p>All the options below end in the same place — a <a href="0004-payment-intent-lifecycle.html">PaymentIntent</a>, a Customer, maybe a Subscription. They differ in <strong>who builds the checkout experience and the surrounding features</strong> (tax, discounts, address collection). More convenience means less control; more control means more to build and maintain.</p>
+    <pre><code>LESS effort, LESS control                 MORE effort, MORE control
+   │                                                            │
+   ▼                                                            ▼
+Payment Links ──> Checkout ──> Elements ──> Payment Intents API
+ (no code)      (hosted page)  (your page,   (you build
+                              Stripe's fields)  everything)</code></pre>
+
+    <h2>1. Payment Links — no code</h2>
+    <p>A shareable URL (or a button you embed) that opens a Stripe-hosted payment page. Stripe: "Use Payment Links to embed or share a link to a Stripe payment page to accept payments <em>without a website</em>." You create it in the Dashboard, paste the link in an email or social post, done.</p>
+    <p><strong>Reach for it when:</strong> you need to take a payment <em>now</em> and don't have (or don't want to build) a checkout — a freelancer's invoice link, a quick product sale, a donation button.</p>
+
+    <h2>2. Stripe Checkout — the hosted/embedded page</h2>
+    <p>A prebuilt, Stripe-maintained payment page you send customers to (or embed in your site). You create a <strong>Checkout Session</strong> in code saying what's being sold; Stripe renders the page, collects the card, handles authentication, and creates the objects. It also does the tedious surrounding work for you: "enable Stripe Tax by setting <code>automatic_tax.enabled = true</code>," plus discounts, shipping, address collection, and subscription creation — features you'd otherwise build yourself.</p>
+    <p><strong>Reach for it when:</strong> you have a website and want a production-grade checkout fast, with tax/discounts/subscriptions handled. Stripe explicitly "recommend[s] the Checkout Sessions API for most integrations." This is the sensible default.</p>
+
+    <div class="callout tip">
+      <p><strong>Checkout speaks Products and Prices directly.</strong> You hand a Checkout Session the <a href="0002-products-and-prices.html">Price</a> IDs from Lesson 2, and it builds the page from them. The object model you learned <em>is</em> the integration's vocabulary — which is exactly why we learned it first.</p>
+    </div>
+
+    <h2>3. Elements — your page, Stripe's secure fields</h2>
+    <p>Stripe <strong>Elements</strong> are pre-built, secure UI components (the card field, the payment form) you drop into <em>your own</em> page and style to match your brand. Stripe: "Use Stripe Elements to design a custom page to collect payments." The card data still goes straight to Stripe, so you stay out of PCI scope, but the layout and flow are yours.</p>
+    <p><strong>Reach for it when:</strong> you need the checkout to live inside your own UI and match your design precisely, but still want Stripe to handle the sensitive card input.</p>
+
+    <h2>4. The Payment Intents API directly — build everything</h2>
+    <p>The lowest level: you create and confirm <a href="0004-payment-intent-lifecycle.html">PaymentIntents</a> yourself and own the entire flow. Stripe is blunt about the trade-off: "The Payment Intents API is a lower-level API that allows you to build everything yourself, including tax calculation, discounts, subscriptions, and currency conversion… you calculate the final amount and manage the entire checkout lifecycle in your own code."</p>
+    <p><strong>Reach for it when:</strong> you have an unusual flow that the higher-level tools can't express, and you accept that "some features… require significant effort to replicate."</p>
+
+    <h2>Billing: the parallel choice for subscriptions</h2>
+    <p>For recurring revenue, <strong>Stripe Billing</strong> is the layer that manages <a href="0005-subscriptions-and-invoices.html">Subscriptions and Invoices</a>, retries, and prorations for you. The same spectrum applies: let Checkout create the subscription (easy), or drive the Billing APIs yourself (full control). The <strong>Customer Portal</strong> is a bonus — a Stripe-hosted page where customers update cards, switch plans, or cancel, with no code from you.</p>
+
+    <h2>The thread that ties it together: webhooks</h2>
+    <p>Whichever option you pick, the decisive moments happen asynchronously — a payment succeeds, a renewal is charged overnight, a card is declined. <strong>Webhooks</strong> (Lesson 1) are how your system finds out and reacts: grant access on <code>payment_intent.succeeded</code>, revoke it when a subscription goes <code>past_due</code>. Even a no-code Payment Link can fire webhooks. <em>(Webhooks are a topic of their own — a natural next workspace under <code>10 Stripe</code>.)</em></p>
+
+    <h2>A quick decision guide</h2>
+    <pre><code>No website / one-off?            → Payment Link
+Standard checkout, want it fast? → Checkout            (the default)
+Must match your own UI exactly?  → Elements
+Genuinely unusual flow?          → Payment Intents API
+Recurring billing?               → Billing + Checkout, with the Customer Portal</code></pre>
+
+    <div class="quiz" data-answer="b"
+         data-correct="Correct. Checkout is Stripe's recommended default for most integrations — a hosted/embedded page that handles tax, discounts, authentication, and subscriptions for you."
+         data-incorrect="Not quite. Building it all on the raw Payment Intents API is the high-effort end; for a standard checkout you want fast, Stripe recommends Checkout. Re-read the decision guide.">
+      <h4>You have a normal website and want a solid checkout quickly, with tax and discounts handled. Which option does Stripe recommend as the default?</h4>
+      <ul class="quiz-options">
+        <li><label><input type="radio" name="q1" value="a"> The Payment Intents API, built from scratch</label></li>
+        <li><label><input type="radio" name="q1" value="b"> Stripe Checkout, the prebuilt page</label></li>
+        <li><label><input type="radio" name="q1" value="c"> Elements, styled to match your brand</label></li>
+        <li><label><input type="radio" name="q1" value="d"> A Payment Link with no website at all</label></li>
+      </ul>
+      <button class="quiz-submit">Check answer</button>
+      <div class="quiz-feedback"></div>
+    </div>
+
+    <h2>Recommended primary source</h2>
+    <p>The <a href="https://docs.stripe.com/payments/online-payments">Online payments overview</a> lays out these options side by side; <a href="https://docs.stripe.com/payments/checkout/how-checkout-works">How Checkout works</a> is worth a read since it's the default you'll most often reach for.</p>
+
+    <div class="callout tip">
+      <p><strong>Questions?</strong> Ask me. Test yourself: "Why do all four options still produce a PaymentIntent?" or "Which option would I pick for a SaaS with subscriptions and a branded billing page — and what handles the renewals?"</p>
+    </div>
+
+    <p>That's the ecosystem mapped: the objects, both money flows, and the menu of ways to wire them up. Revisit the <a href="../reference/stripe-object-map.html">object map</a> any time, and from the <a href="../index.html">topic home</a> you can jump back to any lesson.</p>
+
+    <nav class="lesson-nav">
+      <a href="0005-subscriptions-and-invoices.html">← Lesson 0005</a>
+      <span></span>
+    </nav>
+  </main>
+
+  <footer>
+    <p>Learning Tank · Stripe · Core Concepts · Lesson 0006 · <a href="../reference/stripe-object-map.html">Object map</a></p>
+  </footer>
+
+  <script src="../../../../assets/quiz.js"></script>
+</body>
+</html>

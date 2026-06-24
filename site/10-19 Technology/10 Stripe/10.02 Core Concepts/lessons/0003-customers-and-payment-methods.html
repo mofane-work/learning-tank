@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customers and payment methods</title>
+  <link rel="stylesheet" href="../../../../assets/style.css">
+</head>
+<body>
+  <header>
+    <nav class="breadcrumb">
+      <span><a href="../../../../index.html">Learning Tank</a></span>
+      <span><a href="../../../index.html">Technology</a></span>
+      <span><a href="../../index.html">Stripe</a></span>
+      <span><a href="../index.html">Core Concepts</a></span>
+      <span>0003</span>
+    </nav>
+    <h1>Customers and payment methods</h1>
+    <p class="subtitle">The Customer is the hub the rest of the graph hangs off. Get this object right and saved cards, subscriptions, and invoices all have a home.</p>
+    <div class="lesson-meta">
+      <span>Lesson 0003</span>
+      <span>~6 min</span>
+      <span>The parties</span>
+    </div>
+  </header>
+
+  <main class="lesson-body">
+    <h2>The Customer is a hub, not just a contact</h2>
+    <p>A <strong>Customer</strong> object represents the person or business you charge. It holds the obvious things — email, name, address — but its real job is to be the <strong>anchor</strong> that everything else attaches to:</p>
+    <pre><code>Customer (cus_...)
+   ├─ PaymentMethod(s)     saved cards / bank accounts
+   ├─ default payment method   which one to charge automatically
+   ├─ Subscription(s)      ongoing recurring billing
+   ├─ Invoice(s)           bills raised against them
+   └─ a credit balance     money owed to/from them</code></pre>
+    <p>You can take a <em>one-off</em> payment without ever creating a Customer. But the moment you want to charge someone <em>again</em> — a second purchase, a subscription, a saved card — you need a Customer to hang it on. That's the dividing line: <strong>one-and-done vs. a relationship</strong>.</p>
+
+    <h2>PaymentMethod: a card, abstracted</h2>
+    <p>A <strong>PaymentMethod</strong> represents <em>how</em> a customer pays — a card, a bank account, a wallet like Apple Pay, a regional method like iDEAL or SEPA. They all become the same kind of object so the rest of Stripe can treat "a way to pay" uniformly.</p>
+    <p>Crucially, <strong>your servers never see the raw card number.</strong> The customer's card details go straight from their browser to Stripe, which returns a PaymentMethod object you can safely store and reference by ID. That's the core of how Stripe keeps you out of PCI scope.</p>
+
+    <div class="callout note">
+      <p><strong>Attaching matters.</strong> A PaymentMethod can exist on its own, but to reuse it you <em>attach</em> it to a Customer. An attached PaymentMethod is one you can charge later without the customer re-entering anything. An unattached one is good for a single payment and then forgotten.</p>
+    </div>
+
+    <h2>Saving a card for later: the SetupIntent</h2>
+    <p>There are two reasons to collect a card, and Stripe gives each its own object:</p>
+    <ul>
+      <li><strong>Charge now</strong> → a <a href="0004-payment-intent-lifecycle.html">PaymentIntent</a> (Lesson 4). Collect the card <em>and</em> move money in one flow.</li>
+      <li><strong>Save now, charge later</strong> → a <strong>SetupIntent</strong>. Collect and validate a card — including any bank authentication — <em>without</em> charging it, so it's ready for future use.</li>
+    </ul>
+    <p>A SetupIntent is what you use before a free trial that will bill later, or to let a customer add a card to their account "on file". It runs the same authentication a real payment would, so the saved card won't surprise you with a decline the first time you actually charge it. Think of it as a PaymentIntent for <em>zero dollars whose only goal is a reusable PaymentMethod</em>.</p>
+
+    <h2>Why reuse one Customer</h2>
+    <p>It's tempting to create a fresh Customer for every transaction. Don't. One Customer per real-world person or business means:</p>
+    <ul>
+      <li>Saved cards work — the next purchase is one click because the PaymentMethod is already attached.</li>
+      <li>Subscriptions have somewhere to live and a default card to bill.</li>
+      <li>Invoices, receipts, and lifetime value all roll up to one record instead of scattering.</li>
+    </ul>
+    <p>The Customer is the thread that turns isolated payments into an account.</p>
+
+    <div class="quiz" data-answer="b"
+         data-correct="Correct. A SetupIntent collects and validates a card (including authentication) without charging it, leaving a reusable PaymentMethod attached to the Customer for later."
+         data-incorrect="Not quite. Charging now is a PaymentIntent's job. To save a card for a future charge without billing it now, you use a SetupIntent. Re-read 'Saving a card for later'.">
+      <h4>You want a customer to add a card during a free trial so you can bill them when the trial ends. Which object collects the card now without charging?</h4>
+      <ul class="quiz-options">
+        <li><label><input type="radio" name="q1" value="a"> A PaymentIntent for the trial amount</label></li>
+        <li><label><input type="radio" name="q1" value="b"> A SetupIntent that saves the card</label></li>
+        <li><label><input type="radio" name="q1" value="c"> A Charge created directly on the card</label></li>
+        <li><label><input type="radio" name="q1" value="d"> A new Price marked as a free trial</label></li>
+      </ul>
+      <button class="quiz-submit">Check answer</button>
+      <div class="quiz-feedback"></div>
+    </div>
+
+    <h2>Recommended primary source</h2>
+    <p>The <a href="https://docs.stripe.com/api/customers">Customer object reference</a> and the <a href="https://docs.stripe.com/payments/save-and-reuse">Save and reuse payment methods</a> guide together show what a Customer holds and how saving a card actually works.</p>
+
+    <div class="callout tip">
+      <p><strong>Questions?</strong> Ask away. Test yourself: "When is it genuinely fine <em>not</em> to create a Customer?" or "Why does Stripe make me validate a card with a SetupIntent instead of just storing the number?"</p>
+    </div>
+
+    <p>We now have a catalogue and a customer with a card on file. Time to move money. <a href="0004-payment-intent-lifecycle.html">Lesson 4</a> follows a single payment from start to settled.</p>
+
+    <nav class="lesson-nav">
+      <a href="0002-products-and-prices.html">← Lesson 0002</a>
+      <a href="0004-payment-intent-lifecycle.html">Next: the PaymentIntent lifecycle →</a>
+    </nav>
+  </main>
+
+  <footer>
+    <p>Learning Tank · Stripe · Core Concepts · Lesson 0003 · <a href="../reference/stripe-object-map.html">Object map</a></p>
+  </footer>
+
+  <script src="../../../../assets/quiz.js"></script>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Stripe object model: a map</title>
+  <link rel="stylesheet" href="../../../../assets/style.css">
+</head>
+<body>
+  <header>
+    <nav class="breadcrumb">
+      <span><a href="../../../../index.html">Learning Tank</a></span>
+      <span><a href="../../../index.html">Technology</a></span>
+      <span><a href="../../index.html">Stripe</a></span>
+      <span><a href="../index.html">Core Concepts</a></span>
+      <span>0001</span>
+    </nav>
+    <h1>The Stripe object model: a map</h1>
+    <p class="subtitle">Stripe looks like a wall of unfamiliar nouns. Underneath, it's a small graph of objects that all connect. Learn the map first and every later detail has somewhere to hang.</p>
+    <div class="lesson-meta">
+      <span>Lesson 0001</span>
+      <span>~6 min</span>
+      <span>Orientation</span>
+    </div>
+  </header>
+
+  <main class="lesson-body">
+    <h2>Everything is an object with an ID</h2>
+    <p>The single most useful idea for navigating Stripe: almost everything you touch is an <strong>object</strong> — a record that Stripe stores and hands back with a unique, human-readable ID. The <em>prefix</em> tells you the type at a glance:</p>
+    <pre><code>cus_NffrFeUfNV2Hib     a Customer
+prod_NWjs8kKbJWmuuc    a Product
+price_1MoBy5LkdIwH...  a Price
+pi_3MtwBwLkdIwHu7...   a PaymentIntent  (a one-time payment)
+ch_3MtwBwLkdIwHu7...   a Charge         (one attempt at that payment)
+sub_1MowQVLkdIwHu7...  a Subscription
+in_1MtHbELkdIwHu7...   an Invoice</code></pre>
+    <p>You <strong>create</strong>, <strong>retrieve</strong>, and <strong>update</strong> these objects through the Stripe API, and you can see and edit the very same objects in the <strong>Dashboard</strong>. The Dashboard is just a friendly window onto the objects your API calls create — not a separate system.</p>
+
+    <div class="callout note">
+      <p><strong>Why this helps.</strong> Once you see Stripe as "a few dozen object types that point at each other," learning it becomes learning the <em>relationships</em>, not memorising a giant API. That graph is what this whole topic teaches.</p>
+    </div>
+
+    <h2>Two parallel worlds: test mode and live mode</h2>
+    <p>Every Stripe account is really <strong>two separate accounts</strong>: <strong>test mode</strong> and <strong>live mode</strong>. Test mode takes fake card numbers, moves no real money, and is where you build and experiment. Live mode is production. They have <em>separate data</em> — a customer you create in test mode does not exist in live mode — and <em>separate API keys</em>.</p>
+    <p>An <strong>API key</strong> is the secret that authenticates a request <em>and</em> picks which world it acts on. A request signed with a test key creates test objects; a live key creates real ones. Keeping that straight is the first thing that saves you from confusion.</p>
+
+    <h2>The map</h2>
+    <p>Here is the whole core model on one screen. It has two halves — a <strong>catalogue</strong> (what you sell) and the <strong>parties</strong> (who you charge) — joined by two <strong>money flows</strong> (one-time and recurring).</p>
+    <pre><code>          CATALOGUE                         PARTIES
+   ┌─────────────────────┐         ┌────────────────────────┐
+   │  Product            │         │  Customer              │
+   │  (what you sell)    │         │  (who you charge)      │
+   │      │ has many     │         │      │ has saved       │
+   │      ▼              │         │      ▼                 │
+   │  Price              │         │  PaymentMethod         │
+   │  (how much/how often)│        │  (a card, a bank...)   │
+   └─────────┬───────────┘         └───────────┬────────────┘
+             │                                 │
+             │   ┌─────────────────────────────┘
+             ▼   ▼
+   ════════ TWO WAYS MONEY MOVES ════════════════════════════
+
+   ONE-TIME            PaymentIntent ──> Charge ──> payout
+   (a single sale)     (tracks a payment) (an attempt) (to your bank)
+
+   RECURRING           Subscription ──> Invoice ──> PaymentIntent ──> Charge
+   (Customer + Price)  (per billing cycle, auto-billed)</code></pre>
+    <p>Read it as plain sentences and it's almost obvious:</p>
+    <ul>
+      <li>A <strong>Price</strong> belongs to a <strong>Product</strong>; one Product can have many Prices (Lesson 2).</li>
+      <li>A <strong>Customer</strong> can have saved <strong>PaymentMethods</strong> (Lesson 3).</li>
+      <li>A one-time sale is a <strong>PaymentIntent</strong>, which results in a <strong>Charge</strong>, which eventually settles into a <strong>payout</strong> to your bank (Lesson 4).</li>
+      <li>A <strong>Subscription</strong> ties a Customer to a Price and, each billing cycle, raises an <strong>Invoice</strong> that pays itself via a PaymentIntent (Lesson 5).</li>
+    </ul>
+    <p>Notice the payoff in the bottom-right: <strong>both</strong> money flows end in the same place — a PaymentIntent and a Charge. Recurring billing is, underneath, the one-time payment machinery on a timer. That's why the same objects keep reappearing.</p>
+
+    <div class="callout tip">
+      <p><strong>One Stripe, many "products" on top.</strong> The objects above are the foundation. Stripe's bigger features are layers on this base: <em>Billing</em> manages Subscriptions and Invoices, <em>Checkout</em> is a ready-made page that creates these objects for you, <em>Connect</em> routes money between multiple accounts. Learn the objects and the products stop being mysterious.</p>
+    </div>
+
+    <h2>How a request becomes an object — and a webhook</h2>
+    <p>The everyday rhythm of working with Stripe is a three-beat loop:</p>
+    <ol>
+      <li><strong>You call the API</strong> — e.g. "create a PaymentIntent for $20".</li>
+      <li><strong>Stripe creates or updates an object</strong> and returns it, with its <code>id</code> and a <code>status</code>.</li>
+      <li><strong>Stripe emits an event</strong> describing what happened (e.g. <code>payment_intent.succeeded</code>) and can deliver it to your server as a <strong>webhook</strong> — an HTTP call Stripe makes <em>to you</em>.</li>
+    </ol>
+    <p>Webhooks matter because the interesting moment often happens <em>later and elsewhere</em> — a bank confirms a payment, a subscription renews overnight, a card is declined on the next cycle. The webhook is how your system learns about it. We'll only name webhooks here; choosing how to handle them is part of Lesson 6.</p>
+
+    <div class="quiz" data-answer="b"
+         data-correct="Correct. The Dashboard and the API act on the same objects; the Dashboard is just a visual window onto them, not a separate system."
+         data-incorrect="Not quite. The Dashboard and the API are two views of the same underlying objects — creating a customer in the API makes it visible in the Dashboard. Re-read 'Everything is an object with an ID'.">
+      <h4>You create a Customer with an API call. Where can you then see that customer?</h4>
+      <ul class="quiz-options">
+        <li><label><input type="radio" name="q1" value="a"> Only by retrieving it again through the API</label></li>
+        <li><label><input type="radio" name="q1" value="b"> In the Dashboard, which shows the same objects</label></li>
+        <li><label><input type="radio" name="q1" value="c"> Nowhere until a payment is attached to them</label></li>
+        <li><label><input type="radio" name="q1" value="d"> In both test mode and live mode at once</label></li>
+      </ul>
+      <button class="quiz-submit">Check answer</button>
+      <div class="quiz-feedback"></div>
+    </div>
+
+    <h2>Recommended primary source</h2>
+    <p>Keep the <a href="https://docs.stripe.com/api">Stripe API reference</a> open as you go — it's the canonical catalogue of every object and the fields it holds. You don't read it cover to cover; you look up an object when you meet it. Skim the left-hand list once now just to see how small the core really is.</p>
+
+    <div class="callout tip">
+      <p><strong>Questions?</strong> I'm your teacher for this — ask me anything that didn't land. Good ones to test yourself with: "Why does Stripe split a payment into a PaymentIntent <em>and</em> a Charge?" or "If test and live are separate, what happens to my test data when I go live?"</p>
+    </div>
+
+    <p>When the map feels like a picture you could redraw from memory, move on to <a href="0002-products-and-prices.html">Lesson 2</a>, where we zoom into the catalogue. Keep the <a href="../reference/stripe-object-map.html">object map</a> handy for quick review.</p>
+
+    <nav class="lesson-nav">
+      <span></span>
+      <a href="0002-products-and-prices.html">Next: Products &amp; Prices →</a>
+    </nav>
+  </main>
+
+  <footer>
+    <p>Learning Tank · Stripe · Core Concepts · Lesson 0001 · <a href="../reference/stripe-object-map.html">Object map</a></p>
+  </footer>
+
+  <script src="../../../../assets/quiz.js"></script>
+</body>
+</html>

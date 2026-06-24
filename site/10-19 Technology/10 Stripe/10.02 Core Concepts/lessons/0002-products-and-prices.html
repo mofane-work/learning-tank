@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Products and Prices</title>
+  <link rel="stylesheet" href="../../../../assets/style.css">
+</head>
+<body>
+  <header>
+    <nav class="breadcrumb">
+      <span><a href="../../../../index.html">Learning Tank</a></span>
+      <span><a href="../../../index.html">Technology</a></span>
+      <span><a href="../../index.html">Stripe</a></span>
+      <span><a href="../index.html">Core Concepts</a></span>
+      <span>0002</span>
+    </nav>
+    <h1>Products and Prices</h1>
+    <p class="subtitle">The catalogue half of Stripe, and the one most people get tangled in. A Product is <em>what</em> you sell. A Price is <em>how much</em> and <em>how often</em>. Keeping them apart is the whole lesson.</p>
+    <div class="lesson-meta">
+      <span>Lesson 0002</span>
+      <span>~7 min</span>
+      <span>The catalogue</span>
+    </div>
+  </header>
+
+  <main class="lesson-body">
+    <h2>Two objects, one clean split</h2>
+    <p>Stripe deliberately splits your catalogue into two objects:</p>
+    <ul>
+      <li>A <strong>Product</strong> describes <em>what</em> you offer — a name and description, nothing about money. In Stripe's words, "Products define what your business offers, whether that's goods or services."</li>
+      <li>A <strong>Price</strong> describes <em>how much</em> and <em>how often</em> to charge for that product. Stripe: "Prices define how much and how often to charge for products."</li>
+    </ul>
+    <p>So "Pro Plan" is a Product. "$20 per month" is a Price <em>on</em> that product. The customer's receipt shows the product's name and description; only the numbers come from the Price.</p>
+
+    <div class="callout note">
+      <p><strong>Why separate them at all?</strong> Because the thing you sell is stable, but how you charge for it changes constantly — different currencies, monthly vs yearly, a promotional rate, a regional discount. Splitting them lets all those variations share one product identity instead of duplicating it.</p>
+    </div>
+
+    <h2>One Product, many Prices</h2>
+    <p>A single Product can carry <strong>many</strong> Prices at once. Stripe: "Products can use multiple prices to define different pricing options. The prices share the product description… only the pricing differs." A typical "Pro Plan" product might hold:</p>
+    <pre><code>Product: "Pro Plan"
+   ├─ Price: $20 / month        (USD, recurring monthly)
+   ├─ Price: $200 / year        (USD, recurring yearly — two months free)
+   ├─ Price: €19 / month        (EUR, recurring monthly)
+   └─ Price: $25 / month        (USD, recurring monthly — legacy, now archived)</code></pre>
+    <p>The customer picks <em>a Price</em> at checkout. The Product just ties them together so reporting, receipts, and your catalogue all agree on what was sold.</p>
+
+    <h2>Recurring vs one-time</h2>
+    <p>The most important field on a Price is whether it <strong>recurs</strong>:</p>
+    <ul>
+      <li>A <strong>recurring</strong> Price has an interval — <code>month</code>, <code>year</code>, <code>week</code>, <code>day</code>. It's what a <a href="0005-subscriptions-and-invoices.html">Subscription</a> charges on a cycle (Lesson 5).</li>
+      <li>A <strong>one-time</strong> Price has no interval. It's charged once — a single sale via a <a href="0004-payment-intent-lifecycle.html">PaymentIntent</a> (Lesson 4).</li>
+    </ul>
+    <p>The <em>same</em> Product can have both: a "Design Course" product might have a one-time $99 Price (buy it outright) and a $12/month recurring Price (pay monthly). One catalogue entry, two ways to pay.</p>
+
+    <div class="callout note">
+      <p><strong>Where the money amount lives.</strong> A Price stores its amount in the currency's smallest unit — <code>unit_amount: 2000</code> means <strong>$20.00</strong>, not $2000. Stripe counts in cents (or the equivalent) to avoid rounding errors. A frequent source of "why did I charge 100× too much" bugs.</p>
+    </div>
+
+    <h2>Prices are immutable — you don't edit them, you replace them</h2>
+    <p>You cannot change the amount on an existing Price. From Stripe's docs: "Instead of changing the <code>unit_amount</code> on the existing price, you need to create a new price… to make sure that we keep the existing price as an immutable record of past transactions." To raise your price you:</p>
+    <ol>
+      <li><strong>Create a new Price</strong> ($25/month) on the same Product.</li>
+      <li><strong>Archive the old one</strong> by setting <code>active = false</code> so it can't be picked for new sales.</li>
+    </ol>
+    <p>Existing subscriptions keep pointing at the old Price until you move them. This is what keeps a two-year-old invoice honest: the Price it referenced still says exactly what was charged then. (Moving a subscriber from the old Price to the new one mid-cycle is precisely what <a href="../../10.01 Prorations/index.html">10.01 Prorations</a> is about.)</p>
+
+    <div class="quiz" data-answer="c"
+         data-correct="Correct. Prices are immutable records, so you create a new $25 Price on the same Product and archive the old $20 one — you never edit the amount in place."
+         data-incorrect="Not quite. You can't change a Price's amount — it's an immutable record. You create a new Price and archive the old. Re-read 'Prices are immutable'.">
+      <h4>You want to raise your Pro Plan from $20/month to $25/month. What's the correct move?</h4>
+      <ul class="quiz-options">
+        <li><label><input type="radio" name="q1" value="a"> Edit the existing Price's amount to twenty-five</label></li>
+        <li><label><input type="radio" name="q1" value="b"> Create a second Product for the new amount</label></li>
+        <li><label><input type="radio" name="q1" value="c"> Create a new Price, archive the old one</label></li>
+        <li><label><input type="radio" name="q1" value="d"> Delete the Product and rebuild it fresh</label></li>
+      </ul>
+      <button class="quiz-submit">Check answer</button>
+      <div class="quiz-feedback"></div>
+    </div>
+
+    <h2>Beyond a flat amount</h2>
+    <p>A Price can encode more than one number when you need it: <strong>tiers</strong> (volume or graduated pricing — cheaper per unit as quantity grows), <strong>usage-based</strong> billing (charge by metered consumption), and <strong>tax behaviour</strong> (whether the amount is tax-inclusive). You don't need these to start — just know the Price object is where that complexity lives, not the Product.</p>
+
+    <h2>Recommended primary source</h2>
+    <p>Read it once, end to end — it's short and settles the Product/Price confusion for good: <a href="https://docs.stripe.com/products-prices/how-products-and-prices-work">How products and prices work</a>.</p>
+
+    <div class="callout tip">
+      <p><strong>Questions?</strong> Ask me anything. Worth testing yourself: "If a customer is on the old $20 Price and I create a $25 one, what does <em>their</em> next invoice say?" or "When would I put a one-time and a recurring Price on the same Product?"</p>
+    </div>
+
+    <p>With the catalogue clear, we cross to the other half of the map — the people you charge. On to <a href="0003-customers-and-payment-methods.html">Lesson 3</a>.</p>
+
+    <nav class="lesson-nav">
+      <a href="0001-the-stripe-object-model.html">← Lesson 0001</a>
+      <a href="0003-customers-and-payment-methods.html">Next: Customers &amp; payment methods →</a>
+    </nav>
+  </main>
+
+  <footer>
+    <p>Learning Tank · Stripe · Core Concepts · Lesson 0002 · <a href="../reference/stripe-object-map.html">Object map</a></p>
+  </footer>
+
+  <script src="../../../../assets/quiz.js"></script>
+</body>
+</html>
